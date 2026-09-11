@@ -656,8 +656,6 @@ def login_user(username: str, password: str) -> Tuple[bool, str, Optional[Dict[s
 
     # 3. Offline fallback: on-device account store
     return login_local_user(username, password)
-<<<<<<< HEAD
-=======
 
 
 # ============================================================
@@ -745,7 +743,6 @@ def revoke_remember_token(token: str) -> None:
                 _write_json_atomic(REMEMBER_TOKENS_PATH, kept)
     except Exception:
         pass
->>>>>>> origin/arena/01a08e34-futuremining
 
 
 # ============================================================
