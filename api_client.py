@@ -1,7 +1,11 @@
 import os
+import csv
 import json
 import hashlib
 import secrets
+import tempfile
+from datetime import datetime, timedelta
+from pathlib import Path
 from urllib.parse import quote_plus
 from typing import List, Dict, Any, Optional, Tuple
 
@@ -137,6 +141,422 @@ def verify_password_local(password: str, pwd_hash: str, salt: str) -> bool:
     calc_hash = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000).hex()
     return secrets.compare_digest(calc_hash, pwd_hash)
 
+
+# ============================================================
+# LOCAL OFFLINE STORE (accounts + progress, no backend needed)
+# Local account ids are negative ints; guests use None.
+# ============================================================
+LOCAL_USERS_PATH = Path(__file__).parent / "data" / "local_users.json"
+LOCAL_PROGRESS_PATH = Path(__file__).parent / "data" / "local_progress.json"
+_local_store_lock = threading.Lock()
+_local_topic_cache: Optional[Dict[str, str]] = None
+
+
+def _is_local_user_id(user_id: Any) -> bool:
+    return isinstance(user_id, bool) is False and isinstance(user_id, int) and user_id < 0
+
+
+def _read_json_list(path: Path) -> List[Dict[str, Any]]:
+    try:
+        if path.exists():
+            stored = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(stored, list):
+                return stored
+    except Exception:
+        pass
+    return []
+
+
+def _write_json_atomic(path: Path, payload: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.stem}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp_file:
+            tmp_path = Path(tmp_file.name)
+            json.dump(payload, tmp_file, indent=2)
+            tmp_file.write("\n")
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except Exception:
+                pass
+
+
+def _local_now() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _local_topic_map() -> Dict[str, str]:
+    """Map question id -> topic from the bundled CSVs (cached)."""
+    global _local_topic_cache
+    if _local_topic_cache is not None:
+        return _local_topic_cache
+    mapping: Dict[str, str] = {}
+    data_dir = Path(__file__).parent / "data"
+    for csv_name in ("gate_questions_1000.csv", "GATE_800_Questions_Classified.csv"):
+        csv_path = data_dir / csv_name
+        if not csv_path.exists():
+            continue
+        try:
+            with csv_path.open("r", encoding="utf-8", newline="") as handle:
+                for row in csv.DictReader(handle):
+                    qid = str(row.get("id", "")).strip()
+                    if qid and qid not in mapping:
+                        mapping[qid] = str(row.get("topic", "") or "General").strip() or "General"
+        except Exception:
+            continue
+    _local_topic_cache = mapping
+    return mapping
+
+
+def _public_local_user(record: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "id": record["id"],
+        "username": record["username"],
+        "full_name": record.get("full_name") or record["username"],
+        "email": record.get("email"),
+        "auth_source": "local",
+    }
+
+
+def register_local_user(
+    username: str,
+    password: str,
+    full_name: Optional[str] = None,
+    email: Optional[str] = None,
+) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """Create an account in the on-device store (offline mode)."""
+    clean_name = (username or "").strip()
+    if not clean_name or not password:
+        return False, "Please enter username and password", None
+    try:
+        with _local_store_lock:
+            users = _read_json_list(LOCAL_USERS_PATH)
+            lowered = clean_name.lower()
+            if any(str(u.get("username", "")).lower() == lowered for u in users):
+                return False, f"Username '{clean_name}' is already taken", None
+            pwd_hash, salt = hash_password_local(password)
+            next_id = min([int(u.get("id", 0)) for u in users] + [0]) - 1
+            record = {
+                "id": next_id,
+                "username": clean_name,
+                "full_name": (full_name or "").strip() or clean_name,
+                "email": (email or "").strip() or None,
+                "password_hash": pwd_hash,
+                "salt": salt,
+                "created_at": _local_now(),
+            }
+            users.append(record)
+            _write_json_atomic(LOCAL_USERS_PATH, users)
+        return True, "Account created on this device (offline mode). Welcome!", _public_local_user(record)
+    except Exception as exc:
+        return False, f"Could not create local account: {exc}", None
+
+
+def login_local_user(
+    username: str,
+    password: str,
+) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+    """Authenticate against the on-device store (offline mode)."""
+    clean_name = (username or "").strip()
+    if not clean_name or not password:
+        return False, "Please enter username and password", None
+    with _local_store_lock:
+        users = _read_json_list(LOCAL_USERS_PATH)
+    for record in users:
+        if str(record.get("username", "")).lower() == clean_name.lower():
+            if verify_password_local(password, record.get("password_hash", ""), record.get("salt", "")):
+                return True, f"Welcome back, {record.get('full_name') or record['username']}! (offline mode)", _public_local_user(record)
+            return False, "Invalid username or password", None
+    return False, "Invalid username or password", None
+
+
+def _record_local_attempt(
+    user_id: int,
+    question_id: int,
+    selected_option: int,
+    is_correct: bool,
+    mode: str,
+) -> bool:
+    try:
+        with _local_store_lock:
+            progress = _read_json_list(LOCAL_PROGRESS_PATH)
+            # Progress file holds a list of mixed records; attempts carry kind="attempt".
+            progress.append({
+                "kind": "attempt",
+                "user_id": user_id,
+                "question_id": question_id,
+                "topic": _local_topic_map().get(str(question_id), "General"),
+                "selected_option": selected_option,
+                "is_correct": bool(is_correct),
+                "mode": mode,
+                "created_at": _local_now(),
+            })
+            _write_json_atomic(LOCAL_PROGRESS_PATH, progress)
+        return True
+    except Exception:
+        return False
+
+
+def _save_local_session(
+    user_id: int,
+    mode: str,
+    score: float,
+    total_questions: int,
+    correct_count: int,
+    incorrect_count: int,
+    unattempted_count: int,
+    time_taken_seconds: int = 0,
+    details_json: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    try:
+        with _local_store_lock:
+            progress = _read_json_list(LOCAL_PROGRESS_PATH)
+            session_id = sum(1 for r in progress if r.get("kind") == "session") + 1
+            record = {
+                "kind": "session",
+                "id": session_id,
+                "user_id": user_id,
+                "mode": mode,
+                "score": float(score),
+                "total_questions": total_questions,
+                "correct_count": correct_count,
+                "incorrect_count": incorrect_count,
+                "unattempted_count": unattempted_count,
+                "time_taken_seconds": time_taken_seconds,
+                "details_json": details_json,
+                "created_at": _local_now(),
+            }
+            progress.append(record)
+            _write_json_atomic(LOCAL_PROGRESS_PATH, progress)
+        return {k: v for k, v in record.items() if k != "kind"}
+    except Exception:
+        return None
+
+
+def _local_user_summary(user_id: int) -> Optional[Dict[str, Any]]:
+    """Build the analytics summary shape from the on-device store."""
+    with _local_store_lock:
+        users = _read_json_list(LOCAL_USERS_PATH)
+        progress = _read_json_list(LOCAL_PROGRESS_PATH)
+    user_row = next((u for u in users if u.get("id") == user_id), None)
+    if not user_row:
+        return None
+    attempts = [r for r in progress if r.get("kind") == "attempt" and r.get("user_id") == user_id]
+    sessions = [r for r in progress if r.get("kind") == "session" and r.get("user_id") == user_id]
+
+    total_att = len(attempts)
+    total_corr = sum(1 for r in attempts if r.get("is_correct"))
+    acc_pct = round((total_corr / max(1, total_att)) * 100, 1) if total_att > 0 else 0.0
+
+    mock_sessions = [s for s in sessions if s.get("mode") == "mock_test"]
+    best_score = float(max([s.get("score", 0.0) for s in mock_sessions] + [0.0]))
+
+    by_topic: Dict[str, Dict[str, int]] = {}
+    for attempt in attempts:
+        topic = str(attempt.get("topic") or "General")
+        bucket = by_topic.setdefault(topic, {"attempted": 0, "correct": 0})
+        bucket["attempted"] += 1
+        if attempt.get("is_correct"):
+            bucket["correct"] += 1
+
+    topic_breakdown = []
+    strong: List[str] = []
+    weak: List[str] = []
+    for topic in sorted(by_topic, key=lambda t: by_topic[t]["attempted"], reverse=True):
+        bucket = by_topic[topic]
+        t_acc = round((bucket["correct"] / max(1, bucket["attempted"])) * 100, 1)
+        topic_breakdown.append({
+            "topic": topic,
+            "attempted": bucket["attempted"],
+            "correct": bucket["correct"],
+            "accuracy_pct": t_acc,
+        })
+        if bucket["attempted"] >= 3:
+            if t_acc >= 70.0:
+                strong.append(topic)
+            elif t_acc < 50.0:
+                weak.append(topic)
+
+    recent = sorted(sessions, key=lambda s: str(s.get("created_at", "")), reverse=True)[:10]
+    recent_sessions = []
+    for session in recent:
+        recent_sessions.append({
+            "id": session.get("id"),
+            "user_id": session.get("user_id"),
+            "mode": session.get("mode"),
+            "score": session.get("score"),
+            "total_questions": session.get("total_questions"),
+            "correct_count": session.get("correct_count"),
+            "incorrect_count": session.get("incorrect_count"),
+            "unattempted_count": session.get("unattempted_count"),
+            "time_taken_seconds": session.get("time_taken_seconds", 0),
+            "created_at": session.get("created_at"),
+        })
+
+    return {
+        "user_id": user_row["id"],
+        "username": user_row["username"],
+        "full_name": user_row.get("full_name"),
+        "total_attempted": total_att,
+        "total_correct": total_corr,
+        "accuracy_pct": acc_pct,
+        "mock_tests_taken": len(mock_sessions),
+        "best_mock_score": best_score,
+        "strong_topics": strong[:5],
+        "weak_topics": weak[:5],
+        "topic_breakdown": topic_breakdown,
+        "recent_sessions": recent_sessions,
+    }
+
+# ============================================================
+# GAMIFICATION — XP, miner ranks, daily streaks (on-device)
+# ============================================================
+MINER_RANKS = [
+    (0, "⛏️", "Trainee Miner"),
+    (150, "🪨", "Stone Chipper"),
+    (400, "🛠️", "Shaft Worker"),
+    (800, "💡", "Vein Finder"),
+    (1400, "🥈", "Silver Prospector"),
+    (2200, "🥇", "Gold Prospector"),
+    (3200, "💎", "Diamond Foreman"),
+    (4500, "👑", "Mining Tycoon"),
+]
+
+GAMIFICATION_PATH = Path(__file__).parent / "data" / "local_gamification.json"
+
+
+def _read_json_dict(path: Path) -> Dict[str, Any]:
+    try:
+        if path.exists():
+            stored = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(stored, dict):
+                return stored
+    except Exception:
+        pass
+    return {}
+
+
+def gamification_key(user: Optional[Dict[str, Any]]) -> str:
+    if not user:
+        return "guest:anonymous"
+    source = str(user.get("auth_source") or "cloud")
+    name = str(user.get("username") or "anonymous").lower()
+    return f"{source}:{name}"
+
+
+def _rank_for_xp(xp: int) -> int:
+    idx = 0
+    for i, (threshold, _icon, _name) in enumerate(MINER_RANKS):
+        if xp >= threshold:
+            idx = i
+    return idx
+
+
+def get_gamification(user: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Current XP / rank / streak snapshot for a user (never raises)."""
+    try:
+        key = gamification_key(user)
+        with _local_store_lock:
+            store = _read_json_dict(GAMIFICATION_PATH)
+        xp = int((store.get("xp") or {}).get(key, 0))
+        streak = int((store.get("streaks") or {}).get(key, {}).get("count", 0))
+    except Exception:
+        xp, streak = 0, 0
+    rank_idx = _rank_for_xp(xp)
+    _threshold, icon, name = MINER_RANKS[rank_idx]
+    if rank_idx + 1 < len(MINER_RANKS):
+        next_threshold, _next_icon, next_name = MINER_RANKS[rank_idx + 1]
+        span = max(1, next_threshold - MINER_RANKS[rank_idx][0])
+        pct = min(100.0, max(0.0, (xp - MINER_RANKS[rank_idx][0]) / span * 100.0))
+        to_next = max(0, next_threshold - xp)
+    else:
+        next_name = ""
+        pct = 100.0
+        to_next = 0
+    return {
+        "xp": xp,
+        "streak": streak,
+        "rank_idx": rank_idx,
+        "rank_icon": icon,
+        "rank_name": name,
+        "next_name": next_name,
+        "to_next": to_next,
+        "progress_pct": round(pct, 1),
+    }
+
+
+def award_xp(user: Optional[Dict[str, Any]], amount: int) -> Dict[str, Any]:
+    """Add XP + streak bonus and touch the daily streak. Returns fresh stats."""
+    key = gamification_key(user)
+    today = datetime.now().date().isoformat()
+    with _local_store_lock:
+        store = _read_json_dict(GAMIFICATION_PATH)
+        xp_map = store.get("xp") or {}
+        streak_map = store.get("streaks") or {}
+
+        old_xp = int(xp_map.get(key, 0))
+        old_rank = _rank_for_xp(old_xp)
+
+        entry = streak_map.get(key) or {"count": 0, "last": ""}
+        last = str(entry.get("last") or "")
+        if last == today:
+            streak = int(entry.get("count", 0)) or 1
+        else:
+            yesterday = (datetime.now().date() - timedelta(days=1)).isoformat()
+            streak = int(entry.get("count", 0)) + 1 if last == yesterday else 1
+        streak_map[key] = {"count": streak, "last": today}
+
+        bonus = min(5 * streak, 50)
+        gained = int(amount) + bonus
+        new_xp = old_xp + gained
+        xp_map[key] = new_xp
+
+        store["xp"] = xp_map
+        store["streaks"] = streak_map
+        try:
+            _write_json_atomic(GAMIFICATION_PATH, store)
+        except Exception:
+            pass
+
+    new_rank = _rank_for_xp(new_xp)
+    info = get_gamification(user)
+    info["gained"] = gained
+    info["bonus"] = bonus
+    info["leveled_up"] = new_rank > old_rank
+    info["old_rank_name"] = MINER_RANKS[old_rank][2]
+    return info
+
+
+def notify_xp_gain(gained: int, info: Dict[str, Any]) -> None:
+    """Queue XP toasts (and rank-up balloons) for the next rerun."""
+    if not STREAMLIT_AVAILABLE:
+        return
+    try:
+        pending = st.session_state.get("pending_celebration") or {"toasts": []}
+        toasts = list(pending.get("toasts", []))
+        toasts.append((f"+{gained} XP", "⛏️"))
+        if info.get("leveled_up"):
+            toasts.append(
+                (f"Rank up! You are now {info['rank_icon']} {info['rank_name']}", "🎉")
+            )
+        st.session_state.pending_celebration = {
+            "leveled_up": bool(pending.get("leveled_up") or info.get("leveled_up")),
+            "toasts": toasts[-4:],
+        }
+    except Exception:
+        pass
+
+
 def register_user(username: str, password: str, full_name: Optional[str] = None, email: Optional[str] = None) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """Register a new user via FastAPI or direct DB."""
     # 1. Try FastAPI
@@ -192,7 +612,8 @@ def register_user(username: str, password: str, full_name: Optional[str] = None,
         except Exception as e:
             return False, f"Database error: {e}", None
 
-    return False, "Could not connect to authentication service.", None
+    # 3. Offline fallback: on-device account store
+    return register_local_user(username, password, full_name, email)
 
 def login_user(username: str, password: str) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
     """Authenticate user via FastAPI or direct DB."""
@@ -233,7 +654,8 @@ def login_user(username: str, password: str) -> Tuple[bool, str, Optional[Dict[s
         except Exception as e:
             return False, f"Database error: {e}", None
 
-    return False, "Could not connect to authentication service.", None
+    # 3. Offline fallback: on-device account store
+    return login_local_user(username, password)
 
 
 # ============================================================
@@ -465,6 +887,10 @@ def record_question_attempt(
     async_save: bool = True
 ) -> bool:
     """Record single question attempt (runs in background for zero lag)."""
+    if user_id is None:
+        return False  # guest: nothing to persist
+    if _is_local_user_id(user_id):
+        return _record_local_attempt(user_id, question_id, selected_option, is_correct, mode)
     if async_save:
         t = threading.Thread(
             target=_record_question_attempt_sync,
@@ -487,6 +913,13 @@ def save_test_session(
     details_json: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Persist a completed mock exam or game session to database."""
+    if user_id is None:
+        return None  # guest: nothing to persist
+    if _is_local_user_id(user_id):
+        return _save_local_session(
+            user_id, mode, score, total_questions, correct_count,
+            incorrect_count, unattempted_count, time_taken_seconds, details_json,
+        )
     payload = {
         "user_id": user_id,
         "mode": mode,
@@ -540,6 +973,8 @@ def save_test_session(
 
 def get_user_summary(user_id: int) -> Optional[Dict[str, Any]]:
     """Retrieve full analytics summary for a user."""
+    if _is_local_user_id(user_id):
+        return _local_user_summary(user_id)
     try:
         resp = requests.get(f"{API_BASE_URL}/api/progress/{user_id}/summary", timeout=TIMEOUT)
         if resp.status_code == 200:

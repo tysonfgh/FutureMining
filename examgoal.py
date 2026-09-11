@@ -101,6 +101,8 @@ def render_practice_mode(question_frame: pd.DataFrame):
                             )
                             st.caption(f"💾 Attempt saved to {user.get('username')}'s profile")
                         if is_right:
+                            _xp = api_client.award_xp(user, 15)
+                            api_client.notify_xp_gain(_xp["gained"], _xp)
                             st.success(f"✅ Correct! Option {OPTION_LETTERS[correct_idx]} is the right answer.")
                         else:
                             st.error(f"❌ Incorrect. You selected {OPTION_LETTERS[user_choice]}, but the correct answer is {OPTION_LETTERS[correct_idx]}.")
@@ -237,6 +239,9 @@ def render_mock_test_mode(question_frame: pd.DataFrame):
                             is_correct=(ans == int(q["correct"])),
                             mode="mock_test",
                         )
+                if correct_count > 0:
+                    _mxp = api_client.award_xp(user, 25 * correct_count)
+                    api_client.notify_xp_gain(_mxp["gained"], _mxp)
                 st.session_state.mock_saved_to_db = True
                 st.toast("Test results saved to your profile!", icon="💾")
 
@@ -399,6 +404,12 @@ def render_analytics_dashboard():
     k2.metric("Overall Accuracy", f"{summary.get('accuracy_pct', 0.0)}%")
     k3.metric("Mock Tests Taken", summary.get("mock_tests_taken", 0))
     k4.metric("Best Mock Score", summary.get("best_mock_score", 0.0))
+
+    g1, g2, g3 = st.columns(3)
+    _g = api_client.get_gamification(user)
+    g1.metric("Miner Rank", f"{_g['rank_icon']} {_g['rank_name']}")
+    g2.metric("Total XP", f"{_g['xp']} XP")
+    g3.metric("Day Streak", f"🔥 {_g['streak']}")
 
     st.divider()
 

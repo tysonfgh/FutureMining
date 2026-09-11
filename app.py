@@ -222,6 +222,16 @@ def play_sound(event: str | None) -> None:
 
 
 # ============================================================
+# THEME (dark / light)
+# ============================================================
+
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
+
+IS_LIGHT_THEME = st.session_state.theme == "light"
+
+
+# ============================================================
 # CUSTOM CSS
 # ============================================================
 
@@ -643,6 +653,11 @@ st.markdown(
             color: var(--quiet);
 
             font-size: .61rem;
+        }
+
+
+        .sidebar-hud .progress-track {
+            margin: .55rem 0 .45rem;
         }
 
 
@@ -1991,6 +2006,175 @@ st.markdown(
             opacity: .72;
         }
 
+        /* Button labels live on inner spans with their own theme
+           color, so paint the spans directly. */
+
+        div[data-testid="stButton"] button span {
+            color: #dbe8ff;
+        }
+
+        div[data-testid="stButton"] button[kind="primary"] span,
+        div[data-testid="stButton"] button[data-testid="stBaseButton-primary"] span,
+        [data-testid="stBaseButton-primary"] span {
+            color: #111a2d;
+        }
+
+        div[data-testid="stButton"] button:disabled span {
+            color: #667897;
+        }
+
+
+        /* Sliding theme toggle (single pill button) */
+
+        div[data-testid="stButton"] button[kind="tertiary"],
+        div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"] {
+            position: relative;
+
+            min-width: 100%;
+            width: 100%;
+
+            min-height: 32px;
+            height: 32px;
+
+            padding: 0;
+
+            border: 0;
+
+            border-radius: 999px;
+
+            background: transparent !important;
+
+            color: transparent !important;
+
+            font-size: 0;
+
+            box-shadow: none;
+
+            cursor: pointer;
+        }
+
+        div[data-testid="stButton"] button[kind="tertiary"]:hover:not(:disabled),
+        div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]:hover:not(:disabled) {
+            border: 0;
+
+            background: transparent !important;
+
+            box-shadow: none;
+
+            transform: none;
+        }
+
+
+        /* Hide the text label inside the toggle
+           (Streamlit styles the label span directly,
+           so the button's own color/font-size can't hide it) */
+
+        div[data-testid="stButton"] button[kind="tertiary"] *,
+        div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"] * {
+            display: none !important;
+        }
+
+
+        /* Toggle track */
+
+        div[data-testid="stButton"] button[kind="tertiary"]::before,
+        div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]::before {
+            position: absolute;
+
+            top: 50%;
+            right: 0;
+
+            width: 64px;
+            height: 32px;
+
+            border: 1px solid var(--rule);
+
+            border-radius: 999px;
+
+            background: rgba(18, 17, 38, .85);
+
+            content: "";
+
+            transform: translateY(-50%);
+
+            transition:
+                border-color .2s ease,
+                background .2s ease,
+                box-shadow .2s ease;
+        }
+
+        div[data-testid="stButton"] button[kind="tertiary"]:hover:not(:disabled)::before,
+        div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]:hover:not(:disabled)::before {
+            border-color: var(--cyan);
+
+            box-shadow:
+                0 0 16px rgba(120, 224, 195, .25);
+        }
+
+
+        /* Toggle knob — moon, slid right in dark mode */
+
+        div[data-testid="stButton"] button[kind="tertiary"]::after,
+        div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]::after {
+            position: absolute;
+
+            top: 50%;
+            right: 4px;
+            bottom: auto;
+            left: auto;
+
+            display: grid;
+
+            place-items: center;
+
+            width: 24px;
+            height: 24px;
+
+            border-radius: 50%;
+
+            background: #f5ead6;
+
+            box-shadow:
+                0 2px 8px rgba(0, 0, 0, .35);
+
+            color: #33302b;
+
+            font-size: .85rem;
+
+            line-height: 1;
+
+            content: "🌙";
+
+            transform: translateY(-50%);
+
+            transition:
+                right .25s ease,
+                background .25s ease;
+        }
+
+        div[data-testid="stButton"] button[kind="tertiary"]:hover:not(:disabled)::after,
+        div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]:hover:not(:disabled)::after {
+            right: 4px;
+            left: auto;
+        }
+
+
+        /* Top bar rule (brand left, toggle right) */
+
+        .topbar-rule {
+            height: 1px;
+
+            margin: 1rem 0 2.1rem;
+
+            background: var(--rule);
+
+            transition: background .25s ease;
+        }
+
+        .topbar-rule:hover {
+            background: rgba(120, 224, 195, .40);
+        }
+
 
         /* ====================================================
            RADIO
@@ -2182,6 +2366,1333 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
+# ============================================================
+# LIGHT MODE — cream + maroon + gold (reference screenshot)
+# Override layer only — dark CSS above untouched.
+# ============================================================
+
+if IS_LIGHT_THEME:
+    st.markdown(
+        """
+        <style>
+
+            /* ====================================================
+               LIGHT PALETTE
+            ==================================================== */
+
+            :root {
+                --ink: #33302b;
+                --muted: #776c62;
+                --quiet: #a89c90;
+                --void: #f3eee3;
+                --surface: #fffdf7;
+                --surface-raised: #fffdf7;
+                --surface-soft: #ece4d3;
+
+                --blue: #4f46e5;
+                --cyan: #9a6b1e;
+
+                --gold: #a8741f;
+                --gold-light: #7a4f12;
+
+                --green: #1e7f56;
+                --red: #c23a5a;
+
+                --rule: rgba(107, 31, 54, .14);
+            }
+
+
+            /* ====================================================
+               APP BACKGROUND (warm cream)
+            ==================================================== */
+
+            .stApp {
+                background:
+                    radial-gradient(
+                        ellipse at 68% -16%,
+                        rgba(166, 116, 31, .10),
+                        transparent 33rem
+                    ),
+
+                    radial-gradient(
+                        ellipse at 16% 30%,
+                        rgba(109, 31, 55, .07),
+                        transparent 30rem
+                    ),
+
+                    linear-gradient(
+                        135deg,
+                        rgba(107,31,54,.030) 25%,
+                        transparent 25%
+                    ) 0 0 / 7px 7px,
+
+                    var(--void);
+            }
+
+
+            /* ====================================================
+               TOP BAR / BRAND
+            ==================================================== */
+
+            .topbar:hover {
+                border-color: rgba(168, 116, 31, .45);
+            }
+
+            .brand-mark {
+                border-color: rgba(150, 110, 60, .55);
+
+                background:
+                    linear-gradient(
+                        145deg,
+                        #f7ecd9,
+                        #e8d3ae
+                    );
+
+                box-shadow:
+                    5px 5px 0 rgba(168, 116, 31, .14),
+                    0 0 24px rgba(166, 116, 31, .12);
+
+                color: #6d1f37;
+            }
+
+
+            /* ====================================================
+               CARDS / CONTAINERS
+            ==================================================== */
+
+            [data-testid="stVerticalBlockBorderWrapper"] {
+                background:
+                    linear-gradient(
+                        145deg,
+                        #fffdf7,
+                        #faf5ea
+                    ) !important;
+
+                box-shadow:
+                    0 18px 45px rgba(107, 31, 54, .08),
+                    inset 0 1px 0 rgba(255,255,255,.7);
+            }
+
+            [data-testid="stVerticalBlockBorderWrapper"]:hover {
+                border-color:
+                    rgba(168, 116, 31, .35) !important;
+
+                box-shadow:
+                    0 24px 55px rgba(107, 31, 54, .12),
+                    0 0 0 1px rgba(168, 116, 31, .06),
+                    inset 0 1px 0 rgba(255,255,255,.7);
+            }
+
+
+            /* ====================================================
+               RAIL CARDS
+            ==================================================== */
+
+            .balance-card {
+                border-color: rgba(168, 116, 31, .32);
+                background:
+                    linear-gradient(
+                        135deg,
+                        rgba(232, 185, 61, .18),
+                        rgba(255, 255, 255, .65)
+                    );
+            }
+
+
+            /* ====================================================
+               STAGE + PROGRESS + QUESTION
+            ==================================================== */
+
+            .stage-panel {
+                border-color:
+                    rgba(168, 116, 31, .38) !important;
+            }
+
+            .progress-track {
+                background: rgba(107, 31, 54, .12);
+            }
+
+            .progress-fill {
+                background:
+                    linear-gradient(
+                        90deg,
+                        #7a2440,
+                        #a8506a
+                    );
+
+                box-shadow:
+                    0 0 12px rgba(122, 36, 64, .35);
+            }
+
+            div[data-testid="stVerticalBlockBorderWrapper"]:has(
+                .question-card-marker
+            ) {
+                border-color:
+                    rgba(168, 116, 31, .32) !important;
+
+                background:
+                    linear-gradient(
+                        145deg,
+                        #f9f0de,
+                        #fdf8ec
+                    ) !important;
+
+                box-shadow:
+                    inset 0 1px 0 rgba(255,255,255,.7),
+                    0 18px 42px rgba(107,31,54,.08);
+            }
+
+
+            /* ====================================================
+               FLAG
+            ==================================================== */
+
+            .flag-status {
+                border-color: rgba(107, 31, 54, .18);
+            }
+
+            .flag-status:hover {
+                border-color: rgba(194, 58, 90, .45);
+                background: rgba(194, 58, 90, .06);
+                color: #9c2b47;
+            }
+
+
+            /* ====================================================
+               RESULTS
+            ==================================================== */
+
+            .result-box.good {
+                border-color: rgba(30, 127, 86, .40);
+                background: rgba(30, 127, 86, .08);
+            }
+
+            .result-box.bad {
+                border-color: rgba(194, 58, 90, .35);
+                background: rgba(194, 58, 90, .07);
+            }
+
+            .result-detail {
+                color: #4a4239;
+            }
+
+
+            /* ====================================================
+               ANSWER REVIEW
+            ==================================================== */
+
+            .answer-review-choice {
+                border-color: rgba(107, 31, 54, .20);
+                background: #fbf8f0;
+                color: #4a4239;
+            }
+
+            .answer-review-choice.correct {
+                border-color: rgba(30, 127, 86, .65);
+                background:
+                    linear-gradient(
+                        110deg,
+                        rgba(30, 127, 86, .14),
+                        rgba(30, 127, 86, .07)
+                    );
+                color: #0d4f36;
+                box-shadow: 0 0 18px rgba(30, 127, 86, .10);
+            }
+
+            .answer-review-choice.wrong {
+                border-color: rgba(194, 58, 90, .65);
+                background:
+                    linear-gradient(
+                        110deg,
+                        rgba(194, 58, 90, .12),
+                        rgba(194, 58, 90, .06)
+                    );
+                color: #7a1f3a;
+                box-shadow: 0 0 18px rgba(194, 58, 90, .10);
+            }
+
+
+            /* ====================================================
+               LADDER
+            ==================================================== */
+
+            .ladder-item {
+                color: #6b5f55;
+            }
+
+            .ladder-item:hover:not(.current) {
+                background: rgba(168, 116, 31, .08);
+                box-shadow: inset 2px 0 0 var(--gold);
+            }
+
+            .ladder-item .level {
+                color: #a89c90;
+            }
+
+            .ladder-item.passed {
+                color: #9a6b1e;
+            }
+
+            .ladder-item.passed .level,
+            .ladder-item.passed .prize {
+                color: var(--cyan);
+            }
+
+            .ladder-item.safe {
+                color: #33302b;
+            }
+
+            .ladder-item.safe .level,
+            .ladder-item.safe .prize {
+                color: #7a2440;
+            }
+
+            .ladder-item.current {
+                color: #fff5e6;
+
+                background:
+                    linear-gradient(
+                        90deg,
+                        #7a2440,
+                        #5c1a30
+                    );
+
+                box-shadow:
+                    0 7px 22px rgba(109, 31, 55, .28);
+            }
+
+            .ladder-item.current .level,
+            .ladder-item.current .prize {
+                color: #ffe9c4;
+            }
+
+            .safety-line {
+                background: rgba(168, 116, 31, .30);
+            }
+
+
+            /* ====================================================
+               MAIN BUTTONS
+            ==================================================== */
+
+            div[data-testid="stButton"] button {
+                border-color: rgba(107, 31, 54, .28);
+                background: #fffdf7 !important;
+                color: #6d1f37 !important;
+            }
+
+            div[data-testid="stButton"] button:hover:not(:disabled) {
+                border-color: var(--gold);
+                background: #ffffff !important;
+                color: #3d1220 !important;
+                box-shadow: 0 9px 22px rgba(107, 31, 54, .12);
+            }
+
+            div[data-testid="stButton"] button[kind="primary"],
+            div[data-testid="stButton"] button[data-testid="stBaseButton-primary"],
+            [data-testid="stBaseButton-primary"] {
+                border: 0;
+
+                background:
+                    linear-gradient(
+                        180deg,
+                        #7a2440,
+                        #5c1a30
+                    ) !important;
+
+                color: #fff5e6 !important;
+
+                box-shadow:
+                    0 9px 24px rgba(109, 31, 55, .22);
+            }
+
+            div[data-testid="stButton"] button[kind="primary"]:hover:not(:disabled),
+            div[data-testid="stButton"] button[data-testid="stBaseButton-primary"]:hover:not(:disabled) {
+                background:
+                    linear-gradient(
+                        180deg,
+                        #8a2a48,
+                        #6d1f37
+                    ) !important;
+
+                color: #ffffff !important;
+
+                box-shadow:
+                    0 12px 28px rgba(109, 31, 55, .30);
+            }
+
+            /* Disabled last so it beats primary on ties. */
+
+            div[data-testid="stButton"] button:disabled {
+                border-color:
+                    rgba(107, 31, 54, .12) !important;
+
+                background: #e8d4dc !important;
+
+                color: #9c7a86 !important;
+            }
+
+            /* Streamlit paints button labels on inner spans with
+               their own theme color, so paint the spans directly. */
+
+            div[data-testid="stButton"] button span {
+                color: #6d1f37 !important;
+            }
+
+            div[data-testid="stButton"] button[kind="primary"] span,
+            div[data-testid="stButton"] button[data-testid="stBaseButton-primary"] span {
+                color: #ffffff !important;
+            }
+
+            div[data-testid="stButton"] button:disabled span {
+                color: #9c7a86 !important;
+            }
+
+
+            /* ====================================================
+               MAIN RADIO OPTIONS
+            ==================================================== */
+
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label {
+                border-color: rgba(107, 31, 54, .20);
+                background: #fffdf7;
+            }
+
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label:hover {
+                border-color: rgba(168, 116, 31, .60);
+                background: #ffffff;
+                box-shadow: 0 8px 18px rgba(107, 31, 54, .08);
+            }
+
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label:has(input:checked) {
+                border-color: var(--gold);
+                background:
+                    linear-gradient(
+                        110deg,
+                        rgba(232, 185, 61, .22),
+                        rgba(255, 248, 230, .90)
+                    );
+                box-shadow:
+                    0 0 0 1px rgba(168, 116, 31, .18),
+                    0 10px 24px rgba(168, 116, 31, .12);
+            }
+
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label p,
+
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label span,
+
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label div {
+                color: #33302b !important;
+            }
+
+
+            /* ====================================================
+               NATIVE STREAMLIT TEXT + WIDGETS (base theme is dark)
+            ==================================================== */
+
+            .stApp [data-testid="stMarkdownContainer"] p,
+            .stApp [data-testid="stMarkdownContainer"] h1,
+            .stApp [data-testid="stMarkdownContainer"] h2,
+            .stApp [data-testid="stMarkdownContainer"] h3,
+            .stApp [data-testid="stMarkdownContainer"] h4,
+            .stApp [data-testid="stMarkdownContainer"] li {
+                color: #33302b;
+            }
+
+            .stApp [data-testid="stWidgetLabel"] p {
+                color: #33302b !important;
+            }
+
+            .stApp [data-testid="stCaptionContainer"] {
+                color: #776c62 !important;
+            }
+
+            .stApp [data-testid="stDivider"] {
+                border-color:
+                    rgba(107, 31, 54, .14) !important;
+            }
+
+            .stApp [data-testid="stExpander"] {
+                background: #fffdf7 !important;
+                border-color:
+                    rgba(107, 31, 54, .14) !important;
+            }
+
+            /* Main expander headers paint via the global markdown
+               rules (Streamlit renders them as markdown). */
+
+            .stApp [data-testid="stTabs"] button p {
+                color: #776c62 !important;
+            }
+
+            .stApp [data-testid="stTabs"] button[aria-selected="true"] p {
+                color: #33302b !important;
+            }
+
+            .stApp [data-testid="stTextInput"] input {
+                background: #fffdf7 !important;
+                color: #33302b !important;
+                -webkit-text-fill-color: #33302b !important;
+            }
+
+            .stApp [data-testid="stTextInput"] div[data-baseweb="input"],
+            .stApp [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+                background: #fffdf7 !important;
+                border-color:
+                    rgba(107, 31, 54, .22) !important;
+                color: #33302b !important;
+            }
+
+            .stApp [data-testid="stSelectbox"] div[data-baseweb="select"] div {
+                color: #33302b !important;
+            }
+
+            .stApp [data-testid="stSelectbox"] div[data-baseweb="select"] input {
+                color: #33302b !important;
+                -webkit-text-fill-color: #33302b !important;
+            }
+
+            .stApp [data-testid="stTextInput"] svg,
+            .stApp [data-testid="stSelectbox"] svg {
+                fill: #776c62 !important;
+                color: #776c62 !important;
+            }
+
+            .stApp [data-testid="stDataFrame"] {
+                background: #fffdf7;
+                border: 1px solid rgba(107, 31, 54, .14);
+                border-radius: 12px;
+            }
+
+            .stApp [data-testid="stMetric"] {
+                background: #fffdf7 !important;
+                border:
+                    1px solid rgba(107, 31, 54, .14) !important;
+                border-radius: 12px;
+            }
+
+            .stApp [data-testid="stMetricValue"] {
+                color: #33302b !important;
+            }
+
+            .stApp [data-testid="stMetric"] label p {
+                color: #776c62 !important;
+            }
+
+
+            /* ====================================================
+               HEADER CHROME
+            ==================================================== */
+
+            [data-testid="stHeader"] button {
+                color: #4a1425 !important;
+            }
+
+
+            /* ====================================================
+               SIDEBAR — deep maroon + cream + gold
+               (scoped last so it wins every tie)
+            ==================================================== */
+
+            section[data-testid="stSidebar"] {
+                border-right: 1px solid #38101d;
+
+                background:
+                    radial-gradient(
+                        circle at 50% 0%,
+                        rgba(232, 200, 122, .16),
+                        transparent 20rem
+                    ),
+
+                    linear-gradient(
+                        180deg,
+                        #6d1f37 0%,
+                        #521627 60%,
+                        #431020 100%
+                    );
+            }
+
+
+            section[data-testid="stSidebar"]
+            .sidebar-brand-mark {
+                border-color: rgba(240, 208, 137, .8);
+
+                background:
+                    linear-gradient(
+                        145deg,
+                        #f0d089,
+                        #c99a4a
+                    );
+
+                color: #4a1425;
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-brand-name {
+                color: #f5ead6;
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-brand-name span {
+                color: #e8c87a;
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-brand-note,
+            section[data-testid="stSidebar"]
+            .sidebar-section-title {
+                color: #cfae8d;
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-rule {
+                background: rgba(232, 200, 122, .20);
+            }
+
+            section[data-testid="stSidebar"]
+            .mission-title {
+                color: #d9b36a;
+            }
+
+            section[data-testid="stSidebar"]
+            .mission-title span {
+                color: #7de0a8;
+            }
+
+
+            section[data-testid="stSidebar"]
+            .sidebar-hud {
+                border-color: rgba(232, 200, 122, .30);
+                background: rgba(40, 8, 18, .45);
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-hud:hover {
+                border-color: rgba(240, 208, 137, .55);
+                box-shadow: 0 12px 28px rgba(0, 0, 0, .30);
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-hud-label {
+                color: #cfae8d;
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-hud-value {
+                color: #f7ecd9;
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-hud-sub {
+                color: #b99a86;
+            }
+
+
+            section[data-testid="stSidebar"]
+            .sidebar-stat {
+                border-color: rgba(232, 200, 122, .16);
+                background: rgba(40, 8, 18, .40);
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-stat:hover {
+                border-color: rgba(232, 200, 122, .50);
+                background: rgba(40, 8, 18, .55);
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-stat-label {
+                color: #b99a86;
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-stat-value {
+                color: #f3e6d3;
+            }
+
+
+            section[data-testid="stSidebar"]
+            .depth-node {
+                background: rgba(232, 200, 122, .25);
+            }
+
+            section[data-testid="stSidebar"]
+            .depth-node:hover {
+                background: #e8c87a;
+                box-shadow: 0 0 9px rgba(232, 200, 122, .72);
+            }
+
+            section[data-testid="stSidebar"]
+            .depth-node.passed {
+                background: #d9a94f;
+                box-shadow: 0 0 6px rgba(217, 169, 79, .35);
+            }
+
+            section[data-testid="stSidebar"]
+            .depth-node.current {
+                background: #f0c778;
+                box-shadow: 0 0 9px rgba(240, 199, 120, .75);
+            }
+
+            section[data-testid="stSidebar"]
+            .depth-labels {
+                color: #b99a86;
+            }
+
+
+            section[data-testid="stSidebar"]
+            .safety-note {
+                border-left-color: #d9a94f;
+                background: rgba(232, 200, 122, .10);
+                color: #e6d3bd;
+            }
+
+            section[data-testid="stSidebar"]
+            .safety-note strong {
+                color: #f7ecd9;
+            }
+
+            section[data-testid="stSidebar"]
+            .safety-note:hover {
+                border-color: #f0c778;
+                background: rgba(232, 200, 122, .14);
+            }
+
+
+            section[data-testid="stSidebar"]
+            .flag-summary {
+                border-color: rgba(232, 200, 122, .20);
+                background: rgba(40, 8, 18, .40);
+                color: #e6d3bd;
+            }
+
+            section[data-testid="stSidebar"]
+            .flag-summary:hover {
+                border-color: rgba(240, 168, 184, .55);
+                background: rgba(40, 8, 18, .55);
+            }
+
+            section[data-testid="stSidebar"]
+            .flag-summary strong {
+                color: #f0d089;
+            }
+
+            section[data-testid="stSidebar"]
+            .flag-summary-icon {
+                color: #f0a8b8;
+            }
+
+
+            /* Sidebar buttons: gold secondary, deep-maroon primary */
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button {
+                border-color: rgba(240, 208, 137, .60);
+
+                background:
+                    linear-gradient(
+                        180deg,
+                        #e3b96f,
+                        #d2a04e
+                    ) !important;
+
+                color: #3d1220 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button:hover:not(:disabled) {
+                border-color: #f0d089;
+
+                background:
+                    linear-gradient(
+                        180deg,
+                        #eec987,
+                        #d9a94f
+                    ) !important;
+
+                color: #3d1220 !important;
+
+                box-shadow:
+                    0 8px 18px rgba(217, 169, 79, .30);
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[kind="primary"],
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[data-testid="stBaseButton-primary"] {
+                border:
+                    1px solid rgba(232, 200, 122, .45);
+
+                background:
+                    rgba(40, 8, 18, .60) !important;
+
+                color: #f5ead6 !important;
+
+                box-shadow: none;
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[kind="primary"]:hover:not(:disabled),
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[data-testid="stBaseButton-primary"]:hover:not(:disabled) {
+                border-color: #f0d089;
+
+                background:
+                    rgba(40, 8, 18, .80) !important;
+
+                color: #fff5e6 !important;
+
+                box-shadow:
+                    0 8px 18px rgba(0, 0, 0, .35);
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button:disabled {
+                border-color:
+                    rgba(232, 200, 122, .20) !important;
+
+                background:
+                    rgba(40, 8, 18, .35) !important;
+
+                color: #a9856f !important;
+            }
+
+            /* Sidebar button labels: paint the inner spans. */
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button span {
+                color: #3d1220 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[kind="primary"] span,
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[data-testid="stBaseButton-primary"] span {
+                color: #ffffff !important;
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button:disabled span {
+                color: #a9856f !important;
+            }
+
+
+            /* Sidebar mode radio */
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label {
+                border-color: rgba(232, 200, 122, .22);
+                background: rgba(40, 8, 18, .45);
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label:hover {
+                border-color: rgba(240, 208, 137, .60);
+                background: rgba(40, 8, 18, .60);
+                box-shadow: 0 8px 18px rgba(0, 0, 0, .30);
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label:has(input:checked) {
+                border-color: #d9a94f;
+
+                background:
+                    linear-gradient(
+                        110deg,
+                        rgba(217, 169, 79, .22),
+                        rgba(40, 8, 18, .55)
+                    );
+
+                box-shadow:
+                    0 0 0 1px rgba(217, 169, 79, .20),
+                    0 10px 24px rgba(0, 0, 0, .25);
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label p,
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label span,
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label div {
+                color: #f3e6d3 !important;
+            }
+
+
+            /* Sidebar native widgets (dark maroon) */
+
+            section[data-testid="stSidebar"]
+            [data-testid="stWidgetLabel"] p {
+                color: #f5ead6 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stCaptionContainer"] {
+                color: #cfae8d !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stVerticalBlockBorderWrapper"]
+            [data-testid="stCaptionContainer"] {
+                color: #776c62 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stDivider"] {
+                border-color:
+                    rgba(232, 200, 122, .20) !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"] {
+                background:
+                    rgba(40, 8, 18, .45) !important;
+
+                border-color:
+                    rgba(232, 200, 122, .22) !important;
+
+                color: #ffffff !important;
+            }
+
+            /* Expander headers render as markdown, so override the
+               global dark markdown rules explicitly. */
+
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"]
+            [data-testid="stMarkdownContainer"] p,
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"]
+            [data-testid="stMarkdownContainer"] li,
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"]
+            [data-testid="stMarkdownContainer"] h1,
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"]
+            [data-testid="stMarkdownContainer"] h2,
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"]
+            [data-testid="stMarkdownContainer"] h3,
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"]
+            [data-testid="stMarkdownContainer"] h4 {
+                color: #ffffff !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stTabs"] button p {
+                color: #cfae8d !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stTabs"] button[aria-selected="true"] p {
+                color: #f5ead6 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stTextInput"] input {
+                background:
+                    rgba(40, 8, 18, .55) !important;
+
+                color: #f5ead6 !important;
+
+                -webkit-text-fill-color: #f5ead6 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stTextInput"] div[data-baseweb="input"],
+            section[data-testid="stSidebar"]
+            [data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+                background:
+                    rgba(40, 8, 18, .55) !important;
+
+                border-color:
+                    rgba(232, 200, 122, .25) !important;
+
+                color: #f5ead6 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stSelectbox"] div[data-baseweb="select"] div {
+                color: #f5ead6 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stSelectbox"] div[data-baseweb="select"] input {
+                color: #f5ead6 !important;
+                -webkit-text-fill-color: #f5ead6 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stTextInput"] svg,
+            section[data-testid="stSidebar"]
+            [data-testid="stSelectbox"] svg {
+                fill: #cfae8d !important;
+                color: #cfae8d !important;
+            }
+
+
+            /* Sidebar chrome icons */
+
+            [data-testid="stSidebarCollapseButton"] button {
+                color: #f5ead6 !important;
+            }
+
+            [data-testid="stSidebarCollapsedControl"] button {
+                background: #fffdf7 !important;
+
+                border:
+                    1px solid rgba(107, 31, 54, .20) !important;
+
+                color: #4a1425 !important;
+            }
+
+
+            /* Rank progress bar on the maroon sidebar */
+
+            section[data-testid="stSidebar"] .progress-track {
+                background: rgba(232, 200, 122, .18);
+            }
+
+            section[data-testid="stSidebar"] .progress-fill {
+                background:
+                    linear-gradient(
+                        90deg,
+                        #d9a94f,
+                        #f0c778
+                    );
+
+                box-shadow:
+                    0 0 10px rgba(217, 169, 79, .45);
+            }
+
+
+            /* Sliding toggle in light mode — sun, slid left */
+
+            div[data-testid="stButton"] button[kind="tertiary"]::before,
+            div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]::before {
+                border-color: rgba(107, 31, 54, .25);
+
+                background: #fffdf7;
+
+                box-shadow:
+                    0 2px 10px rgba(107, 31, 54, .10);
+            }
+
+            div[data-testid="stButton"] button[kind="tertiary"]:hover:not(:disabled)::before,
+            div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]:hover:not(:disabled)::before {
+                border-color: var(--gold);
+
+                box-shadow:
+                    0 0 16px rgba(168, 116, 31, .25);
+            }
+
+            div[data-testid="stButton"] button[kind="tertiary"]::after,
+            div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]::after {
+                right: 36px;
+                left: auto;
+
+                background: #6d1f37;
+
+                color: #fff5e6;
+
+                content: "☀️";
+            }
+
+            div[data-testid="stButton"] button[kind="tertiary"]:hover:not(:disabled)::after,
+            div[data-testid="stButton"] button[data-testid="stBaseButton-tertiary"]:hover:not(:disabled)::after {
+                right: 36px;
+                left: auto;
+            }
+
+            .topbar-rule:hover {
+                background: rgba(168, 116, 31, .45);
+            }
+
+
+            /* ====================================================
+               READABILITY BOOST (light mode)
+               Darker secondary text, bolder tiny labels,
+               stronger buttons, brighter sidebar text.
+            ==================================================== */
+
+            :root {
+                --muted: #5f564c;
+                --quiet: #7d7268;
+
+                --gold: #8a5a14;
+                --gold-light: #6b4210;
+                --cyan: #7a5410;
+
+                --green: #166b47;
+            }
+
+
+            /* Tiny uppercase labels read better slightly bolder. */
+
+            .brand-note,
+            .live-label,
+            .stage-kicker,
+            .rail-kicker,
+            .question-kicker,
+            .answer-label,
+            .ladder-caption {
+                font-weight: 500;
+            }
+
+
+            /* Prize ladder rows */
+
+            .ladder-item {
+                color: #4e453d;
+            }
+
+            .ladder-item .level {
+                color: #7d7268;
+            }
+
+            .ladder-item.passed {
+                color: #7a5410;
+            }
+
+
+            /* Main buttons: stronger border, deeper text */
+
+            div[data-testid="stButton"] button {
+                border-color: rgba(107, 31, 54, .38);
+                color: #521627 !important;
+            }
+
+            div[data-testid="stButton"] button:disabled {
+                color: #8a6a76 !important;
+            }
+
+
+            /* Native secondary text */
+
+            .stApp [data-testid="stCaptionContainer"] {
+                color: #5f564c !important;
+            }
+
+            .stApp [data-testid="stTabs"] button p {
+                color: #5f564c !important;
+            }
+
+            .stApp [data-testid="stMetric"] label p {
+                color: #5f564c !important;
+            }
+
+
+            /* Sidebar tans on maroon: brighter */
+
+            section[data-testid="stSidebar"]
+            .sidebar-brand-note,
+            section[data-testid="stSidebar"]
+            .sidebar-section-title,
+            section[data-testid="stSidebar"]
+            .sidebar-hud-label {
+                color: #ddc2a0;
+            }
+
+            section[data-testid="stSidebar"]
+            .sidebar-hud-sub,
+            section[data-testid="stSidebar"]
+            .sidebar-stat-label,
+            section[data-testid="stSidebar"]
+            .depth-labels {
+                color: #d3b896;
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button:disabled {
+                color: #b89a80 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stTabs"] button p {
+                color: #ddc2a0 !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stVerticalBlockBorderWrapper"]
+            [data-testid="stCaptionContainer"] {
+                color: #5f564c !important;
+            }
+
+            section[data-testid="stSidebar"]
+            .depth-node {
+                background: rgba(232, 200, 122, .32);
+            }
+
+
+            /* ====================================================
+               WHITE ON MAROON (sidebar + maroon accents)
+               Gold stays for borders, nodes, tiles and buttons.
+            ==================================================== */
+
+            section[data-testid="stSidebar"]
+            .sidebar-brand-name,
+            section[data-testid="stSidebar"]
+            .sidebar-brand-name span,
+            section[data-testid="stSidebar"]
+            .sidebar-brand-note,
+            section[data-testid="stSidebar"]
+            .sidebar-section-title,
+            section[data-testid="stSidebar"]
+            .mission-title,
+            section[data-testid="stSidebar"]
+            .sidebar-hud-label,
+            section[data-testid="stSidebar"]
+            .sidebar-hud-value,
+            section[data-testid="stSidebar"]
+            .sidebar-hud-sub,
+            section[data-testid="stSidebar"]
+            .sidebar-stat-label,
+            section[data-testid="stSidebar"]
+            .sidebar-stat-value,
+            section[data-testid="stSidebar"]
+            .depth-labels,
+            section[data-testid="stSidebar"]
+            .safety-note,
+            section[data-testid="stSidebar"]
+            .safety-note strong,
+            section[data-testid="stSidebar"]
+            .flag-summary,
+            section[data-testid="stSidebar"]
+            .flag-summary strong {
+                color: #ffffff !important;
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[kind="primary"],
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[data-testid="stBaseButton-primary"],
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[kind="primary"]:hover:not(:disabled),
+            section[data-testid="stSidebar"]
+            div[data-testid="stButton"]
+            button[data-testid="stBaseButton-primary"]:hover:not(:disabled) {
+                color: #ffffff !important;
+            }
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label p,
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label span,
+
+            section[data-testid="stSidebar"]
+            div[data-testid="stRadio"]
+            div[role="radiogroup"]
+            label div {
+                color: #ffffff !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stWidgetLabel"] p,
+            section[data-testid="stSidebar"]
+            [data-testid="stCaptionContainer"],
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"],
+            section[data-testid="stSidebar"]
+            [data-testid="stExpander"]
+            [data-testid="stMarkdownContainer"] p,
+            section[data-testid="stSidebar"]
+            [data-testid="stTabs"] button p,
+            section[data-testid="stSidebar"]
+            [data-testid="stTabs"] button[aria-selected="true"] p,
+            section[data-testid="stSidebar"]
+            [data-testid="stTextInput"] input,
+            section[data-testid="stSidebar"]
+            [data-testid="stTextInput"] div[data-baseweb="input"],
+            section[data-testid="stSidebar"]
+            [data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+            section[data-testid="stSidebar"]
+            [data-testid="stSelectbox"] div[data-baseweb="select"] div {
+                color: #ffffff !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stTextInput"] input,
+            section[data-testid="stSidebar"]
+            [data-testid="stSelectbox"] div[data-baseweb="select"] input {
+                -webkit-text-fill-color: #ffffff !important;
+            }
+
+            section[data-testid="stSidebar"]
+            [data-testid="stTextInput"] svg,
+            section[data-testid="stSidebar"]
+            [data-testid="stSelectbox"] svg {
+                fill: #ffffff !important;
+                color: #ffffff !important;
+            }
+
+            /* Maroon buttons + current tier: pure white text */
+
+            div[data-testid="stButton"] button[kind="primary"],
+            div[data-testid="stButton"] button[data-testid="stBaseButton-primary"],
+            [data-testid="stBaseButton-primary"] {
+                color: #ffffff !important;
+            }
+
+            .ladder-item.current,
+            .ladder-item.current .level,
+            .ladder-item.current .prize {
+                color: #ffffff !important;
+            }
+
+            [data-testid="stSidebarCollapseButton"] button {
+                color: #ffffff !important;
+            }
+
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # ============================================================
 # MATH FORMATTING
@@ -3059,6 +4570,21 @@ st.session_state.sound_event = None
 
 play_sound(sound_event)
 
+pending_celebration = st.session_state.get(
+    "pending_celebration"
+)
+st.session_state.pending_celebration = None
+
+if pending_celebration:
+    if pending_celebration.get("leveled_up"):
+        st.balloons()
+
+    for toast_msg, toast_icon in pending_celebration.get(
+        "toasts",
+        [],
+    ):
+        st.toast(toast_msg, icon=toast_icon)
+
 
 # ============================================================
 # PRIZE LADDER
@@ -3160,6 +4686,216 @@ def show_ladder() -> None:
 
 
 # ============================================================
+# AUTH GATE — landing page is login, then home
+# ============================================================
+
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+
+def render_landing_page() -> None:
+    """Full-screen login landing page (light/dark aware)."""
+
+    st.markdown(
+        """
+        <style>
+            section[data-testid="stSidebar"] {
+                display: none !important;
+            }
+
+            [data-testid="stSidebarCollapsedControl"] {
+                display: none !important;
+            }
+
+            .landing-brand {
+                text-align: center;
+                margin-bottom: 1.4rem;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if IS_LIGHT_THEME:
+        landing_title = "#33302b"
+        landing_sub = "#5f564c"
+    else:
+        landing_title = "#f7f3eb"
+        landing_sub = "#9197a8"
+
+    _, landing_col, _ = st.columns([1, 2.2, 1])
+
+    with landing_col:
+        st.markdown(
+            '<div class="landing-brand">'
+            '<div class="brand-mark" style="margin: 0 auto;">'
+            'FM'
+            '</div>'
+            f'<div class="brand-name" '
+            f'style="margin-top: .9rem; font-size: 2rem; '
+            f'color: {landing_title};">'
+            'Future<span>Mining</span>'
+            '</div>'
+            f'<div class="brand-note" '
+            f'style="color: {landing_sub};">'
+            'The field test of mining intelligence'
+            '</div>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        with st.container(border=True):
+            st.markdown(
+                "<div style='text-align: center; "
+                "font-weight: 800; font-size: 1.05rem; "
+                f"letter-spacing: -.02em; color: {landing_title};'>"
+                "Welcome back, miner ⛏️</div>"
+                "<div style='text-align: center; "
+                f"font-size: .78rem; color: {landing_sub}; "
+                "margin: .3rem 0 1rem;'>"
+                "Log in to enter the mine</div>",
+                unsafe_allow_html=True,
+            )
+
+            login_tab, signup_tab = st.tabs(
+                ["Login", "Create account"]
+            )
+
+            with login_tab:
+                landing_user = st.text_input(
+                    "Username",
+                    key="landing_login_username",
+                )
+                landing_pass = st.text_input(
+                    "Password",
+                    type="password",
+                    key="landing_login_password",
+                )
+                if st.button(
+                    "Log In",
+                    type="primary",
+                    use_container_width=True,
+                    key="landing_btn_login",
+                ):
+                    if landing_user and landing_pass:
+                        success, msg, udata = (
+                            api_client.login_user(
+                                landing_user,
+                                landing_pass,
+                            )
+                        )
+                        if success:
+                            st.session_state.user = udata
+                            st.toast(msg, icon="🎉")
+                            st.rerun()
+                        else:
+                            st.error(msg)
+                    else:
+                        st.warning(
+                            "Please enter username and password"
+                        )
+
+            with signup_tab:
+                reg_user = st.text_input(
+                    "Choose Username",
+                    key="landing_reg_username",
+                )
+                reg_pass = st.text_input(
+                    "Choose Password",
+                    type="password",
+                    key="landing_reg_password",
+                )
+                reg_name = st.text_input(
+                    "Full Name (Optional)",
+                    key="landing_reg_name",
+                )
+                reg_email = st.text_input(
+                    "Email (Optional)",
+                    key="landing_reg_email",
+                )
+                if st.button(
+                    "Create Account",
+                    type="primary",
+                    use_container_width=True,
+                    key="landing_btn_register",
+                ):
+                    if reg_user and reg_pass:
+                        success, msg, udata = (
+                            api_client.register_user(
+                                reg_user,
+                                reg_pass,
+                                reg_name,
+                                reg_email,
+                            )
+                        )
+                        if success:
+                            st.session_state.user = udata
+                            st.toast(msg, icon="🎉")
+                            st.rerun()
+                        else:
+                            st.error(msg)
+                    else:
+                        st.warning(
+                            "Please enter username and password"
+                        )
+
+            st.divider()
+
+            if st.button(
+                "Continue as Guest",
+                use_container_width=True,
+                key="landing_btn_guest",
+            ):
+                st.session_state.user = {
+                    "id": None,
+                    "username": "guest",
+                    "full_name": "Guest Miner",
+                    "email": None,
+                    "is_guest": True,
+                    "auth_source": "guest",
+                }
+                st.toast(
+                    "Entering as guest — "
+                    "progress won't be saved.",
+                    icon="👤",
+                )
+                st.rerun()
+
+            st.markdown(
+                "<div style='text-align: center; "
+                f"font-size: .72rem; color: {landing_sub};'>"
+                "Guest mode lets you explore · "
+                "Log in to save progress"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+
+        _, landing_theme_col, _ = st.columns([2, 1, 2])
+
+        with landing_theme_col:
+            if st.button(
+                (
+                    "🌙 Dark"
+                    if IS_LIGHT_THEME
+                    else "☀️ Light"
+                ),
+                use_container_width=True,
+                key="landing_theme_toggle",
+            ):
+                st.session_state.theme = (
+                    "dark"
+                    if IS_LIGHT_THEME
+                    else "light"
+                )
+                st.rerun()
+
+
+if st.session_state.user is None:
+    render_landing_page()
+    st.stop()
+
+
+# ============================================================
 # SIDEBAR
 # ============================================================
 
@@ -3198,7 +4934,10 @@ with st.sidebar:
             u_col1, u_col2 = st.columns([3, 1])
             with u_col1:
                 st.markdown(f"**👤 {user.get('full_name') or user.get('username')}**")
-                st.caption(f"@{user.get('username')} · GATE Mining")
+                st.caption(
+                    f"@{user.get('username')} · "
+                    f"{'Guest mode' if user.get('is_guest') else 'GATE Mining'}"
+                )
             with u_col2:
                 if st.button("🚪", help="Logout"):
                     st.session_state.user = None
@@ -3383,6 +5122,54 @@ with st.sidebar:
         '</div>'
 
         '</div>'
+        '</div>',
+
+        unsafe_allow_html=True,
+    )
+
+
+    rank_info = api_client.get_gamification(user)
+
+    rank_streak_label = (
+        f"🔥 {rank_info['streak']}"
+        if rank_info['streak'] > 0
+        else "🔥 —"
+    )
+
+    if rank_info["next_name"]:
+        rank_next_label = (
+            f"Next: {rank_info['next_name']} · "
+            f"{rank_info['to_next']} XP to go"
+        )
+    else:
+        rank_next_label = "Max rank achieved 👑"
+
+    st.markdown(
+        '<div class="mission-title">'
+        'Miner rank'
+        f'<span>{rank_streak_label}</span>'
+        '</div>'
+
+        '<div class="sidebar-hud">'
+
+        '<div class="sidebar-hud-label">'
+        f"{rank_info['rank_icon']} {rank_info['rank_name']}"
+        '</div>'
+
+        '<div class="sidebar-hud-value">'
+        f"{rank_info['xp']} XP"
+        '</div>'
+
+        '<div class="progress-track">'
+        f'<div class="progress-fill" '
+        f'style="width:{rank_info["progress_pct"]:.1f}%">'
+        '</div>'
+        '</div>'
+
+        '<div class="sidebar-hud-sub">'
+        f'{rank_next_label}'
+        '</div>'
+
         '</div>',
 
         unsafe_allow_html=True,
@@ -3692,39 +5479,67 @@ with st.sidebar:
 # TOP BAR
 # ============================================================
 
+topbar_left, topbar_right = st.columns([8, 1])
+
+with topbar_left:
+    st.markdown(
+        '<div class="brand-lockup">'
+
+        '<div class="brand-mark">'
+        'FM'
+        '</div>'
+
+        '<div>'
+
+        '<div class="brand-name">'
+        'Future<span>Mining</span>'
+        '</div>'
+
+        '<div class="brand-note">'
+        'The field test of mining intelligence'
+        '</div>'
+
+        '</div>'
+
+        '</div>'
+
+        '<div class="live-label" style="margin-top:.6rem;">'
+
+        '<span class="live-dot"></span>'
+
+        'GATE question bank · live round'
+
+        '</div>',
+
+        unsafe_allow_html=True,
+    )
+
+with topbar_right:
+    st.markdown(
+        "<div style='height:8px;'></div>",
+        unsafe_allow_html=True,
+    )
+
+    if st.button(
+        "theme",
+        type="tertiary",
+        use_container_width=True,
+        key="home_theme_toggle",
+        help=(
+            "Switch to dark mode"
+            if IS_LIGHT_THEME
+            else "Switch to light mode"
+        ),
+    ):
+        st.session_state.theme = (
+            "dark"
+            if IS_LIGHT_THEME
+            else "light"
+        )
+        st.rerun()
+
 st.markdown(
-    '<div class="topbar">'
-
-    '<div class="brand-lockup">'
-
-    '<div class="brand-mark">'
-    'FM'
-    '</div>'
-
-    '<div>'
-
-    '<div class="brand-name">'
-    'Future<span>Mining</span>'
-    '</div>'
-
-    '<div class="brand-note">'
-    'The field test of mining intelligence'
-    '</div>'
-
-    '</div>'
-
-    '</div>'
-
-    '<div class="live-label">'
-
-    '<span class="live-dot"></span>'
-
-    'GATE question bank · live round'
-
-    '</div>'
-
-    '</div>',
-
+    '<div class="topbar-rule"></div>',
     unsafe_allow_html=True,
 )
 
@@ -4088,6 +5903,16 @@ else:
                                 unattempted_count=max(0, 15 - current_level),
                                 details_json=json.dumps({"prize": PRIZES[current_level - 1] if st.session_state.last_result else (PRIZES[current_level - 2] if current_level > 1 else "₹0")})
                             )
+
+                    if st.session_state.last_result:
+                        xp_info = api_client.award_xp(
+                            user,
+                            40 + current_level * 8,
+                        )
+                        api_client.notify_xp_gain(
+                            xp_info["gained"],
+                            xp_info,
+                        )
 
                     st.session_state.sound_event = (
 
