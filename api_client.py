@@ -656,6 +656,96 @@ def login_user(username: str, password: str) -> Tuple[bool, str, Optional[Dict[s
 
     # 3. Offline fallback: on-device account store
     return login_local_user(username, password)
+<<<<<<< HEAD
+=======
+
+
+# ============================================================
+# REMEMBER ME (persistent login tokens)
+# Only a SHA-256 hash of each token is stored server-side;
+# the raw token lives in the visitor's own browser cookie.
+# ============================================================
+REMEMBER_COOKIE_NAME = "fm_remember"
+REMEMBER_TOKENS_PATH = Path(__file__).parent / "data" / "remember_tokens.json"
+REMEMBER_TOKEN_DAYS = 30
+
+
+def _remember_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _prune_remember_tokens(tokens: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    now_stamp = _local_now()
+    return [t for t in tokens if str(t.get("expires_at", "")) > now_stamp]
+
+
+def create_remember_token(user: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Mint a persistent login token for `user` (None for guests)."""
+    if not user or user.get("id") is None or user.get("is_guest"):
+        return None
+    token = secrets.token_urlsafe(32)
+    snapshot = {key: user.get(key) for key in ("id", "username", "full_name", "email", "auth_source")}
+    snapshot["auth_source"] = user.get("auth_source") or "server"
+    record = {
+        "token_hash": _remember_token_hash(token),
+        "user": snapshot,
+        "created_at": _local_now(),
+        "expires_at": (datetime.now() + timedelta(days=REMEMBER_TOKEN_DAYS)).strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    try:
+        with _local_store_lock:
+            tokens = _prune_remember_tokens(_read_json_list(REMEMBER_TOKENS_PATH))
+            tokens.append(record)
+            _write_json_atomic(REMEMBER_TOKENS_PATH, tokens)
+        return token
+    except Exception:
+        return None
+
+
+def validate_remember_token(token: str) -> Optional[Dict[str, Any]]:
+    """Return the remembered user dict if `token` is valid, else None."""
+    if not token:
+        return None
+    wanted = _remember_token_hash(token)
+    try:
+        with _local_store_lock:
+            tokens = _read_json_list(REMEMBER_TOKENS_PATH)
+            fresh = _prune_remember_tokens(tokens)
+            if len(fresh) != len(tokens):
+                _write_json_atomic(REMEMBER_TOKENS_PATH, fresh)
+            match = next((t for t in fresh if t.get("token_hash") == wanted), None)
+        if not match:
+            return None
+        user = dict(match.get("user") or {})
+        if user.get("id") is None:
+            return None
+        # Local accounts: make sure the account still exists.
+        if user.get("auth_source") == "local":
+            with _local_store_lock:
+                users = _read_json_list(LOCAL_USERS_PATH)
+            if not any(u.get("id") == user.get("id") for u in users):
+                revoke_remember_token(token)
+                return None
+        user["is_guest"] = False
+        return user
+    except Exception:
+        return None
+
+
+def revoke_remember_token(token: str) -> None:
+    """Delete a persistent login token (logout / stale cookie)."""
+    if not token:
+        return
+    try:
+        wanted = _remember_token_hash(token)
+        with _local_store_lock:
+            tokens = _read_json_list(REMEMBER_TOKENS_PATH)
+            kept = [t for t in tokens if t.get("token_hash") != wanted]
+            if len(kept) != len(tokens):
+                _write_json_atomic(REMEMBER_TOKENS_PATH, kept)
+    except Exception:
+        pass
+>>>>>>> origin/arena/01a08e34-futuremining
 
 
 # ============================================================

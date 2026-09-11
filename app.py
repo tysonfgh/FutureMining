@@ -18,6 +18,14 @@ import pandas as pd
 import streamlit as st
 import api_client
 import examgoal
+import about
+
+try:
+    from extra_streamlit_components import CookieManager
+    COOKIES_AVAILABLE = True
+except ImportError:
+    CookieManager = None
+    COOKIES_AVAILABLE = False
 
 
 # ============================================================
@@ -4686,216 +4694,6 @@ def show_ladder() -> None:
 
 
 # ============================================================
-# AUTH GATE — landing page is login, then home
-# ============================================================
-
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-
-def render_landing_page() -> None:
-    """Full-screen login landing page (light/dark aware)."""
-
-    st.markdown(
-        """
-        <style>
-            section[data-testid="stSidebar"] {
-                display: none !important;
-            }
-
-            [data-testid="stSidebarCollapsedControl"] {
-                display: none !important;
-            }
-
-            .landing-brand {
-                text-align: center;
-                margin-bottom: 1.4rem;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if IS_LIGHT_THEME:
-        landing_title = "#33302b"
-        landing_sub = "#5f564c"
-    else:
-        landing_title = "#f7f3eb"
-        landing_sub = "#9197a8"
-
-    _, landing_col, _ = st.columns([1, 2.2, 1])
-
-    with landing_col:
-        st.markdown(
-            '<div class="landing-brand">'
-            '<div class="brand-mark" style="margin: 0 auto;">'
-            'FM'
-            '</div>'
-            f'<div class="brand-name" '
-            f'style="margin-top: .9rem; font-size: 2rem; '
-            f'color: {landing_title};">'
-            'Future<span>Mining</span>'
-            '</div>'
-            f'<div class="brand-note" '
-            f'style="color: {landing_sub};">'
-            'The field test of mining intelligence'
-            '</div>'
-            '</div>',
-            unsafe_allow_html=True,
-        )
-
-        with st.container(border=True):
-            st.markdown(
-                "<div style='text-align: center; "
-                "font-weight: 800; font-size: 1.05rem; "
-                f"letter-spacing: -.02em; color: {landing_title};'>"
-                "Welcome back, miner ⛏️</div>"
-                "<div style='text-align: center; "
-                f"font-size: .78rem; color: {landing_sub}; "
-                "margin: .3rem 0 1rem;'>"
-                "Log in to enter the mine</div>",
-                unsafe_allow_html=True,
-            )
-
-            login_tab, signup_tab = st.tabs(
-                ["Login", "Create account"]
-            )
-
-            with login_tab:
-                landing_user = st.text_input(
-                    "Username",
-                    key="landing_login_username",
-                )
-                landing_pass = st.text_input(
-                    "Password",
-                    type="password",
-                    key="landing_login_password",
-                )
-                if st.button(
-                    "Log In",
-                    type="primary",
-                    use_container_width=True,
-                    key="landing_btn_login",
-                ):
-                    if landing_user and landing_pass:
-                        success, msg, udata = (
-                            api_client.login_user(
-                                landing_user,
-                                landing_pass,
-                            )
-                        )
-                        if success:
-                            st.session_state.user = udata
-                            st.toast(msg, icon="🎉")
-                            st.rerun()
-                        else:
-                            st.error(msg)
-                    else:
-                        st.warning(
-                            "Please enter username and password"
-                        )
-
-            with signup_tab:
-                reg_user = st.text_input(
-                    "Choose Username",
-                    key="landing_reg_username",
-                )
-                reg_pass = st.text_input(
-                    "Choose Password",
-                    type="password",
-                    key="landing_reg_password",
-                )
-                reg_name = st.text_input(
-                    "Full Name (Optional)",
-                    key="landing_reg_name",
-                )
-                reg_email = st.text_input(
-                    "Email (Optional)",
-                    key="landing_reg_email",
-                )
-                if st.button(
-                    "Create Account",
-                    type="primary",
-                    use_container_width=True,
-                    key="landing_btn_register",
-                ):
-                    if reg_user and reg_pass:
-                        success, msg, udata = (
-                            api_client.register_user(
-                                reg_user,
-                                reg_pass,
-                                reg_name,
-                                reg_email,
-                            )
-                        )
-                        if success:
-                            st.session_state.user = udata
-                            st.toast(msg, icon="🎉")
-                            st.rerun()
-                        else:
-                            st.error(msg)
-                    else:
-                        st.warning(
-                            "Please enter username and password"
-                        )
-
-            st.divider()
-
-            if st.button(
-                "Continue as Guest",
-                use_container_width=True,
-                key="landing_btn_guest",
-            ):
-                st.session_state.user = {
-                    "id": None,
-                    "username": "guest",
-                    "full_name": "Guest Miner",
-                    "email": None,
-                    "is_guest": True,
-                    "auth_source": "guest",
-                }
-                st.toast(
-                    "Entering as guest — "
-                    "progress won't be saved.",
-                    icon="👤",
-                )
-                st.rerun()
-
-            st.markdown(
-                "<div style='text-align: center; "
-                f"font-size: .72rem; color: {landing_sub};'>"
-                "Guest mode lets you explore · "
-                "Log in to save progress"
-                "</div>",
-                unsafe_allow_html=True,
-            )
-
-        _, landing_theme_col, _ = st.columns([2, 1, 2])
-
-        with landing_theme_col:
-            if st.button(
-                (
-                    "🌙 Dark"
-                    if IS_LIGHT_THEME
-                    else "☀️ Light"
-                ),
-                use_container_width=True,
-                key="landing_theme_toggle",
-            ):
-                st.session_state.theme = (
-                    "dark"
-                    if IS_LIGHT_THEME
-                    else "light"
-                )
-                st.rerun()
-
-
-if st.session_state.user is None:
-    render_landing_page()
-    st.stop()
-
-
-# ============================================================
 # SIDEBAR
 # ============================================================
 
@@ -4940,6 +4738,18 @@ with st.sidebar:
                 )
             with u_col2:
                 if st.button("🚪", help="Logout"):
+                    if cookie_manager is not None:
+                        _saved = cookie_manager.get(
+                            api_client.REMEMBER_COOKIE_NAME
+                        )
+                        if _saved:
+                            api_client.revoke_remember_token(
+                                _saved
+                            )
+                            cookie_manager.delete(
+                                api_client.REMEMBER_COOKIE_NAME,
+                                key="fm_remember_del",
+                            )
                     st.session_state.user = None
                     st.toast("Logged out successfully.")
                     st.rerun()
@@ -4949,11 +4759,16 @@ with st.sidebar:
             with auth_tab1:
                 l_user = st.text_input("Username", key="login_username")
                 l_pass = st.text_input("Password", type="password", key="login_password")
+                l_remember = st.checkbox("Remember me on this device", key="login_remember_me")
                 if st.button("Log In", type="primary", use_container_width=True, key="btn_login_submit"):
                     if l_user and l_pass:
                         success, msg, udata = api_client.login_user(l_user, l_pass)
                         if success:
                             st.session_state.user = udata
+                            if l_remember and COOKIES_AVAILABLE:
+                                _remember_token = api_client.create_remember_token(udata)
+                                if _remember_token:
+                                    st.session_state.fm_pending_remember = _remember_token
                             st.toast(msg, icon="🎉")
                             st.rerun()
                         else:
@@ -4984,6 +4799,7 @@ with st.sidebar:
             "📚 GATEMining Practice",
             "⏱️ GATEMining Mock Test",
             "📊 GATE Analytics & History",
+            "ℹ️ About the Developers",
         ],
         index=0,
         key="global_app_mode",
@@ -5558,6 +5374,9 @@ elif current_mode in ("⏱️ GATEMining Mock Test", "⏱️ ExamGoal GATE Mock 
 
 elif current_mode == "📊 GATE Analytics & History":
     examgoal.render_analytics_dashboard()
+
+elif current_mode == "ℹ️ About the Developers":
+    about.render_about_page(light=IS_LIGHT_THEME)
 
 else:
     stage, ladder = st.columns(

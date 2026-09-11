@@ -11,3 +11,4 @@ data/local_users.json
 data/local_progress.json
 data/local_gamification.json
 
+data/remember_tokens.json
